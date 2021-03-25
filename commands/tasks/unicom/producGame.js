@@ -4,8 +4,8 @@ var crypto = require('crypto');
 const { default: PQueue } = require('p-queue');
 const moment = require('moment');
 const path = require('path');
-const { buildUnicomUserAgent } = require('../../../utils/util')
-
+const { appInfo, buildUnicomUserAgent } = require('../../../utils/device')
+const { signRewardVideoParams } = require('./CryptoUtil')
 var transParams = (data) => {
     let params = new URLSearchParams();
     for (let item in data) {
@@ -14,16 +14,6 @@ var transParams = (data) => {
     return params;
 };
 
-var sign = (data) => {
-    let str = 'integralofficial&'
-    let params = []
-    data.forEach((v, i) => {
-        if (v) {
-            params.push('arguments' + (i + 1) + v)
-        }
-    });
-    return crypto.createHash('md5').update(str + params.join('&')).digest('hex')
-}
 
 var deviceInfos = [
     'm=VKY-AL00&o=9&a=28&p=1080*1920&f=HUAWEI&mm=5725&cf=1800&cc=8&qqversion=null',
@@ -54,12 +44,17 @@ var producGame = {
                 let result = res.data
                 if (result) {
                     if (result.respCode !== '0000') {
-                        console.log('娱乐中心每日签到失败', result.respDesc)
+                        console.error('娱乐中心每日签到失败', result.respDesc)
                     } else {
-                        console.log('娱乐中心每日签到获得+' + result.currentIntegral)
+                        if (result.currentIntegral) {
+                            console.reward('integral', result.currentIntegral)
+                            console.info('娱乐中心每日签到获得+' + result.currentIntegral)
+                        } else {
+                            console.info('娱乐中心每日签到', result.respDesc)
+                        }
                     }
                 } else {
-                    console.log('娱乐中心每日签到失败')
+                    console.error('娱乐中心每日签到失败')
                 }
                 resolve()
             }).catch(reject)
@@ -85,7 +80,7 @@ var producGame = {
         let n = 1;
 
         do {
-            console.log('第', n, '次')
+            console.info('第', n, '次')
             let dd = moment().format('MMDDHHmmss')
             let time = new Date().getTime() % 1000
             let s = Math.floor(Math.random() * 90000) + 10000
@@ -146,12 +141,12 @@ var producGame = {
                 method: 'post',
                 responseType: 'arrayBuffer',
                 data: infoEncodeMessage
-            }).catch(err => console.log(err))
+            }).catch(err => console.error(err))
 
-            console.log(Buffer.from(res.data).toString('hex'))
+            console.info(Buffer.from(res.data).toString('hex'))
 
             // 这里不等待1分钟，上面使用 n*62 时长累计来替代，也可正常领取
-            await new Promise((resolve, reject) => setTimeout(resolve, 35 * 1000))
+            await new Promise((resolve, reject) => setTimeout(resolve, 45 * 1000))
 
             ++n
         } while (n <= 6)
@@ -222,7 +217,7 @@ var producGame = {
             method: 'post',
             responseType: 'arrayBuffer',
             data: infoEncodeMessage
-        }).catch(err => console.log(err))
+        }).catch(err => console.error(err))
         let result = JSON.parse(Buffer.from(res.data).slice(0x7).toString('utf-8'))
         return result
     },
@@ -231,7 +226,7 @@ var producGame = {
         let params = {
             'methodType': 'popularGames',
             'deviceType': 'Android',
-            'clientVersion': '8.0100',
+            'clientVersion': appInfo.version,
         }
         let { data, config } = await axios.request({
             baseURL: 'https://m.client.10010.com/',
@@ -250,7 +245,7 @@ var producGame = {
                 popularList: data.popularList || []
             }
         } else {
-            console.log('记录失败')
+            console.error('记录失败')
         }
     },
     gameverify: async (axios, options) => {
@@ -281,10 +276,10 @@ var producGame = {
         })
         if (data) {
             if (data.respCode !== 0) {
-                console.log(data.errorMessage)
+                console.info(data.errorMessage)
             }
         } else {
-            console.log('记录失败')
+            console.error('记录失败')
         }
     },
     gamerecord: async (axios, options) => {
@@ -293,7 +288,7 @@ var producGame = {
         let params = {
             'methodType': 'record',
             'deviceType': 'Android',
-            'clientVersion': '8.0100',
+            'clientVersion': appInfo.version,
             'gameId': gameId,
             'taskId': ''
         }
@@ -308,9 +303,9 @@ var producGame = {
             data: transParams(params)
         })
         if (data) {
-            console.log(data.msg)
+            console.info(data.msg)
         } else {
-            console.log('记录失败')
+            console.error('记录失败')
         }
     },
     queryIntegral: async (axios, options) => {
@@ -320,7 +315,7 @@ var producGame = {
             'taskCenterId': options.taskCenterId,
             'videoIntegral': '0',
             'isVideo': 'Y',
-            'clientVersion': '8.0100',
+            'clientVersion': appInfo.version,
             'deviceType': 'Android'
         }
         let { data, config } = await axios.request({
@@ -334,9 +329,9 @@ var producGame = {
             data: transParams(params)
         })
         if (data.code === '0000') {
-            console.log('获取积分任务状态成功')
+            console.info('获取积分任务状态成功')
         } else {
-            console.log('获取积分任务状态失败')
+            console.error('获取积分任务状态失败')
         }
     },
     getTaskList: async (axios, options) => {
@@ -344,7 +339,7 @@ var producGame = {
         let params = {
             'methodType': 'queryTaskCenter',
             'deviceType': 'Android',
-            'clientVersion': '8.0100'
+            'clientVersion': appInfo.version
         }
         let { data, config } = await axios.request({
             headers: {
@@ -363,63 +358,69 @@ var producGame = {
                 games: data.data
             }
         } else {
-            console.log('获取游戏任务失败')
+            console.error('获取游戏任务失败')
             return {}
         }
     },
     doGameFlowTask: async (axios, options) => {
         let { popularList: allgames, jar } = await producGame.popularGames(axios, options)
-        let games = await producGame.timeTaskQuery(axios, options)
-        games = allgames.filter(g => games.filter(g => g.state === '0').map(i => i.gameId).indexOf(g.id) !== -1)
-        console.log('剩余未完成game', games.length)
-        let queue = new PQueue({ concurrency: 2 });
+        games = allgames.filter(g => g.state === '0')
+        console.info('剩余未完成game', games.length)
+        let queue = new PQueue({ concurrency: 5 });
 
-        console.log('调度任务中', '并发数', 2)
+        // 特例游戏
+        // 亿万豪车2
+        let others = ['1110422106']
+
+        console.info('--->>代刷圈钱狗必死🐴  调度任务中', '并发数', 5)
         for (let game of games) {
             queue.add(async () => {
-                console.log(game.name)
-                await producGame.gameverify(axios, {
-                    ...options,
-                    jar,
-                    game
-                })
-                await producGame.playGame(axios, {
-                    ...options,
-                    jar,
-                    game
-                })
-                await producGame.timeTaskQuery(axios, options)
-                await producGame.gameFlowGet(axios, {
-                    ...options,
-                    gameId: game.gameId
-                })
+                console.info(game.name)
+                if (others.indexOf(game.gameCode) !== -1) {
+                    await require('./xiaowogameh5').playGame(axios, {
+                        ...options,
+                        game
+                    })
+                } else {
+                    await producGame.gameverify(axios, {
+                        ...options,
+                        jar,
+                        game
+                    })
+                    await producGame.playGame(axios, {
+                        ...options,
+                        jar,
+                        game
+                    })
+                }
             })
         }
 
         await queue.onIdle()
 
         await new Promise((resolve, reject) => setTimeout(resolve, (Math.floor(Math.random() * 10) + 30) * 1000))
-        games = await producGame.timeTaskQuery(axios, options)
-        games = games.filter(g => g.state === '1')
-        console.log('剩余未领取game', games.length)
+        
+        let { popularList: undonegames, undonejar } = await producGame.timeTaskQuery(axios, options)
+        games = undonegames.filter(g => g.state === '1')
+        console.info('---> 且用且珍惜🍀 剩余未领取game', games.length)
         for (let game of games) {
             await new Promise((resolve, reject) => setTimeout(resolve, (Math.floor(Math.random() * 10) + 15) * 1000))
             await producGame.gameFlowGet(axios, {
                 ...options,
-                gameId: game.gameId
+                gameId: game.id
             })
         }
     },
     doGameIntegralTask: async (axios, options) => {
         let { games, jar } = await producGame.getTaskList(axios, options)
         games = games.filter(d => d.task === '5' && d.reachState === '0' && d.task_type === 'duration')
-        console.log('剩余未完成game', games.length)
-        let queue = new PQueue({ concurrency: 2 });
+        console.info('剩余未完成game', games.length)
+        let queue = new PQueue({ concurrency: 5 });
 
-        console.log('调度任务中', '并发数', 2)
+        console.info('调度任务中', '并发数', 5)
         for (let game of games) {
             queue.add(async () => {
-                console.log(game.name)
+                console.info(game.name)
                 await producGame.gameverify(axios, {
                     ...options,
                     jar,
@@ -437,11 +438,6 @@ var producGame = {
                         gameCode: game.resource_id
                     }
                 })
-                await producGame.getTaskList(axios, options)
-                await producGame.gameIntegralGet(axios, {
-                    ...options,
-                    taskCenterId: game.id
-                })
             })
         }
 
@@ -450,7 +446,7 @@ var producGame = {
         await new Promise((resolve, reject) => setTimeout(resolve, (Math.floor(Math.random() * 10) + 30) * 1000))
         let { games: cgames } = await producGame.getTaskList(axios, options)
         games = cgames.filter(d => d.task === '5' && d.reachState === '1' && d.task_type === 'duration')
-        console.log('剩余未领取game', games.length)
+        console.info('剩余未领取game', games.length)
         for (let game of games) {
             await new Promise((resolve, reject) => setTimeout(resolve, (Math.floor(Math.random() * 10) + 20) * 1000))
             await producGame.gameIntegralGet(axios, {
@@ -473,11 +469,11 @@ var producGame = {
     timeTaskQuery: async (axios, options) => {
         const useragent = buildUnicomUserAgent(options, 'p')
         let params = {
-            'methodType': 'timeTaskQuery',
+            'methodType': 'popularGames',
             'deviceType': 'Android',
-            'clientVersion': '8.0100'
+            'clientVersion': appInfo.version,
         }
-        let { data } = await axios.request({
+        let { data, config } = await axios.request({
             baseURL: 'https://m.client.10010.com/',
             headers: {
                 "user-agent": useragent,
@@ -489,10 +485,12 @@ var producGame = {
             data: transParams(params)
         })
         if (data) {
-            console.log(data.msg)
-            return data.data//0未进行 state=1待领取 state=2已完成
+            return {
+                jar: config.jar,
+                popularList: data.popularList || []
+            }
         } else {
-            console.log('记录失败')
+            console.error('记录失败')
         }
     },
     gameFlowGet: async (axios, options) => {
@@ -503,7 +501,7 @@ var producGame = {
             'methodType': 'flowGet',
             'gameId': gameId,
             'deviceType': 'Android',
-            'clientVersion': '8.0100',
+            'clientVersion': appInfo.version
         }
         let { data } = await axios.request({
             baseURL: 'https://m.client.10010.com/',
@@ -511,19 +509,21 @@ var producGame = {
                 "user-agent": useragent,
                 "referer": "https://img.client.10010.com",
                 "origin": "https://img.client.10010.com",
-                "X-Requested-With": "com.sinovatech.unicom.ui"
+                "X-Requested-With": appInfo.package_name
             },
             url: `/producGameApp`,
             method: 'post',
             data: transParams(params)
         })
         if (data) {
-            console.log(data.msg)
+            console.info(data.msg)
             if (data.msg.indexOf('防刷策略接口校验不通过') !== -1) {
-                throw new Error('出现【防刷策略接口校验不通过】, 取消本次执行')
+               // throw new Error('出现【防刷策略接口校验不通过】, 取消本次执行')
+               console.error('获取奖励失败')
             }
+            console.reward('flow', '100m')
         } else {
-            console.log('获取奖励失败')
+            console.error('获取奖励失败')
         }
     },
     gameIntegralGet: async (axios, options) => {
@@ -533,7 +533,7 @@ var producGame = {
             'methodType': 'taskGetReward',
             'taskCenterId': taskCenterId,
             'deviceType': 'Android',
-            'clientVersion': '8.0100',
+            'clientVersion': appInfo.version,
         }
         let { data } = await axios.request({
             headers: {
@@ -546,17 +546,19 @@ var producGame = {
             data: transParams(params)
         })
         if (data) {
-            console.log(data.msg)
+            console.info(data.msg)
             if (data.msg.indexOf('防刷策略接口校验不通过') !== -1) {
-                throw new Error('出现【防刷策略接口校验不通过】, 取消本次执行')
+            //    throw new Error('出现【防刷策略接口校验不通过】, 取消本次执行')
+            console.error('获取奖励失败')
             }
+            console.reward('integral', 5)
         } else {
-            console.log('获取奖励失败')
+            console.error('获取奖励失败')
         }
     },
     gameBox: async (axios, options) => {
         let { games: v_games } = await producGame.getTaskList(axios, options)
-        let box_task = v_games.find(d => d.id === '98' && d.reachState !== '2')
+        let box_task = v_games.find(d => d.task_type === 'box' && d.reachState !== '2')
         if (box_task) {
             await producGame.gameIntegralGet(axios, {
                 ...options,
@@ -572,9 +574,10 @@ var producGame = {
             'arguments4': new Date().getTime(), // time
             'arguments6': '',
             'netWay': 'Wifi',
-            'version': `android@8.0100`,
+            'version': appInfo.unicom_version,
+            'codeId': 945535736
         }
-        params['sign'] = sign([params.arguments1, params.arguments2, params.arguments3, params.arguments4])
+        params['sign'] = signRewardVideoParams([params.arguments1, params.arguments2, params.arguments3, params.arguments4])
         return await require('./taskcallback').query(request, {
             ...options,
             params
@@ -594,10 +597,10 @@ var producGame = {
             'netWay': 'Wifi',
             'remark1': '游戏频道看视频得积分',
             'remark': '游戏视频任务积分',
-            'version': `android@8.0100`,
+            'version': appInfo.unicom_version,
             'codeId': 945535736
         }
-        params['sign'] = sign([params.arguments1, params.arguments2, params.arguments3, params.arguments4])
+        params['sign'] = signRewardVideoParams([params.arguments1, params.arguments2, params.arguments3, params.arguments4])
         await require('./taskcallback').doTask(axios, {
             ...options,
             params,
@@ -611,7 +614,7 @@ var producGame = {
 
         if (video_task.reachState === '0') {
             let n = parseInt(video_task.task) - parseInt(video_task.progress)
-            console.log('领取视频任务奖励,剩余', n, '次')
+            console.info('领取视频任务奖励,剩余', n, '次')
             let { jar } = await producGame.watch3TimesVideoQuery(axios, options)
             let i = 1
             while (i <= n) {
@@ -631,6 +634,10 @@ var producGame = {
 
         let { games } = await producGame.getTaskList(axios, options)
         let today_task = games.find(d => d.task_type === 'todayTask')
+        if (!today_task) {
+            console.info('未取得今日任务，跳过')
+            return
+        }
         if (today_task.reachState === '0') {
             throw new Error('部分日常任务未完成，下次再尝试领取完成今日任务流量')
         } else if (today_task.reachState === '1') {
@@ -638,9 +645,10 @@ var producGame = {
                 ...options,
                 taskCenterId: today_task.id
             })
-            console.log('领取完成今日任务流量+200')
+            console.reward('flow', '200m')
+            console.info('领取完成今日任务流量+200m')
         } else if (today_task.reachState === '2') {
-            console.log('每日日常任务已完成')
+            console.info('每日日常任务已完成')
         }
     }
 }
