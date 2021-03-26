@@ -366,13 +366,13 @@ var producGame = {
         let { popularList: allgames, jar } = await producGame.popularGames(axios, options)
         games = allgames.filter(g => g.state === '0')
         console.info('剩余未完成game', games.length)
-        let queue = new PQueue({ concurrency: 5 });
+        let queue = new PQueue({ concurrency: 1 });
 
         // 特例游戏
         // 亿万豪车2
         let others = ['1110422106']
 
-        console.info('--->>代刷圈钱狗必死🐴  调度任务中', '并发数', 5)
+        console.info('调度任务中', '并发数', 5)
         for (let game of games) {
             queue.add(async () => {
                 console.info(game.name)
@@ -415,7 +415,7 @@ var producGame = {
         let { games, jar } = await producGame.getTaskList(axios, options)
         games = games.filter(d => d.task === '5' && d.reachState === '0' && d.task_type === 'duration')
         console.info('剩余未完成game', games.length)
-        let queue = new PQueue({ concurrency: 5 });
+        let queue = new PQueue({ concurrency: 1 });
 
         console.info('调度任务中', '并发数', 5)
         for (let game of games) {
