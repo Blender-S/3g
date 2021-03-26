@@ -372,7 +372,7 @@ var producGame = {
         // 亿万豪车2
         let others = ['1110422106']
 
-        console.info('调度任务中', '并发数', 5)
+        console.info('调度任务中', '并发数', 1)
         for (let game of games) {
             queue.add(async () => {
                 console.info(game.name)
@@ -413,11 +413,11 @@ var producGame = {
     },
     doGameIntegralTask: async (axios, options) => {
         let { games, jar } = await producGame.getTaskList(axios, options)
-        games = games.filter(d => d.task === '5' && d.reachState === '0' && d.task_type === 'duration')
+        games = games.filter(d => d.task === '1' && d.reachState === '0' && d.task_type === 'duration')
         console.info('剩余未完成game', games.length)
         let queue = new PQueue({ concurrency: 1 });
 
-        console.info('调度任务中', '并发数', 5)
+        console.info('调度任务中', '并发数', 1)
         for (let game of games) {
             queue.add(async () => {
                 console.info(game.name)
@@ -445,7 +445,7 @@ var producGame = {
 
         await new Promise((resolve, reject) => setTimeout(resolve, (Math.floor(Math.random() * 10) + 30) * 1000))
         let { games: cgames } = await producGame.getTaskList(axios, options)
-        games = cgames.filter(d => d.task === '5' && d.reachState === '1' && d.task_type === 'duration')
+        games = cgames.filter(d => d.task === '1' && d.reachState === '1' && d.task_type === 'duration')
         console.info('剩余未领取game', games.length)
         for (let game of games) {
             await new Promise((resolve, reject) => setTimeout(resolve, (Math.floor(Math.random() * 10) + 20) * 1000))
@@ -457,7 +457,7 @@ var producGame = {
 
         await new Promise((resolve, reject) => setTimeout(resolve, (Math.floor(Math.random() * 5) + 5) * 1000))
         let { games: ngames } = await producGame.getTaskList(axios, options)
-        let task_times = ngames.find(d => d.task === '3' && d.task_type === 'times')
+        let task_times = ngames.find(d => d.task === '1' && d.task_type === 'times')
         if (task_times && task_times.reachState === '1') {
             await new Promise((resolve, reject) => setTimeout(resolve, (Math.floor(Math.random() * 10) + 15) * 1000))
             await producGame.gameIntegralGet(axios, {
