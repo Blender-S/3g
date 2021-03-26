@@ -162,7 +162,7 @@ let scheduler = {
         scheduler.isTryRun = tryrun
         scheduler.taskKey = taskKey || 'default'
         if (scheduler.isTryRun) {
-            console.log('!!!当前运行在TryRun模式，仅建议在测试时运行!!!')
+            console.log('TryRun模式,启动了！')
             await new Promise((resolve) => setTimeout(resolve, 3000))
         }
         console.log('将使用', scheduler.taskKey.replaceWithMask(2, 3), '作为账户识别码')
@@ -226,8 +226,8 @@ let scheduler = {
             }
 
             // 任务执行
-            let queue = new PQueue({ concurrency: 2 });
-            console.log('调度任务中', '并发数', 2)
+            let queue = new PQueue({ concurrency: 1 });
+            console.log('调度任务中', '并发数', 1,'并发是1')
             for (let task of will_tasks) {
                 queue.add(async () => {
                     try {
